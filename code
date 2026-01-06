@@ -1,0 +1,259 @@
+-- data cleaning project
+
+
+select *
+from layoffs;
+
+-- 1. remove duplicates
+-- 2. standardize the data
+-- 3. null values or blank values
+-- 4. remove any column
+ 
+ 
+ create table layoff_staging
+ like layoffs;  -- create same table like layoffs
+ 
+ 
+ insert  layoff_staging
+ select * from
+ layoffs;
+ 
+ select *
+from layoff_staging;
+
+-- create row_number usig partition by for uniqueness
+select *,
+row_number() over( 
+partition by
+company,location,industry,total_laid_off,percentage_laid_off,'date',stage,country) as row_num
+from
+layoff_staging;
+
+
+-- for finding duplicate data 
+with duplicate_cte as
+(select *,
+row_number() over( 
+partition by
+company,location,industry,total_laid_off,percentage_laid_off,'date',stage,country,funds_raised_millions) as row_num
+from
+layoff_staging)
+select * from
+duplicate_cte
+where row_num > 1;
+
+
+select *
+from layoff_staging
+where company = 'oyster';
+
+
+
+-- for removing duplicate 
+
+with duplicate_cte as
+(select *,
+row_number() over( 
+partition by
+company,location,industry,total_laid_off,percentage_laid_off,'date',stage,country,funds_raised_millions) as row_num
+from
+layoff_staging)
+delete
+ from
+duplicate_cte
+where row_num > 1;  -- this is not working so we hAVE TO CREATE A NEW TABLE FOR REMOVING DUPLICATE
+
+
+CREATE TABLE `layoff_staging2` (
+  `company` text,
+  `location` text,
+  `industry` text,
+  `total_laid_off` int DEFAULT NULL,
+  `percentage_laid_off` text,
+  `date` text,
+  `stage` text,
+  `country` text,
+  `funds_raised_millions` int DEFAULT NULL,
+  `row_num` int
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+ 
+ 
+ 
+ select *
+from layoff_staging2;
+
+
+insert into layoff_staging2 
+ select *,
+row_number() over( 
+partition by
+company,location,industry,total_laid_off,percentage_laid_off,'date',stage,country,funds_raised_millions) as row_num
+from
+layoff_staging;
+
+
+select * from
+
+layoff_staging2
+where row_num > 1;
+
+delete  -- so it removes duplicates
+from
+layoff_staging2
+where row_num > 1;
+
+-- for turning off safe mode
+SET SQL_SAFE_UPDATES = 0;
+
+DELETE
+FROM layoff_staging2
+WHERE row_num > 1;
+
+SET SQL_SAFE_UPDATES = 1;  -- optional: turn it back on
+
+
+
+-- 2. standardizing data
+
+
+select distint(Company)
+from layoff_staging2;
+
+select distinct(TRIM(company))
+from layoff_staging2;
+
+
+select company,TRIM(company)
+from layoff_staging2;
+
+update layoff_staging2
+set
+company = trim(company);
+
+
+
+ select distinct(industry)
+ from layoff_staging2
+order by 1;
+
+
+select industry 
+from layoff_staging2 
+where industry like 'crypto%';
+
+
+update layoff_staging2 
+set industry = 'crypto'
+where industry like 'crypto%';
+
+
+ select distinct(country)
+ from layoff_staging2
+order by 1;
+
+ select distinct(country)
+ from layoff_staging2
+where country like 'united states%'
+order by 1;
+
+select distinct country, trim(trailing '.' from country)
+ from layoff_staging2
+
+order by 1;
+
+
+update layoff_staging2 
+set country = trim(trailing '.' from country);
+
+
+
+select DATE
+from layoff_staging2;
+
+
+select `date`,
+str_to_date(`date` ,'%m/%d/%Y/')
+
+
+from layoff_staging2;
+
+
+update layoff_staging2 
+set `date` = str_to_date(`date` ,'%m/%d/%Y/')
+;
+
+
+alter table layoff_staging2 
+modify column `date` DATE;
+
+
+-- 3. null values or blank values
+
+select *
+from layoff_staging2
+where total_laid_off is null
+and percentage_laid_off is null;
+
+
+
+
+select *
+from layoff_staging2
+where industry is null
+or industry = ' ';
+
+
+
+select *
+from layoff_staging2
+where company = 'airbnb';
+
+
+select *
+from layoff_staging2 t1
+join layoff_staging2 t2
+on t1.company = t2.company
+where t1.industry is null
+and t2.industry is not null;
+
+ 
+ 
+select t1.industry,t2.industry
+from layoff_staging2 t1
+join layoff_staging2 t2
+on t1.company = t2.company
+where t1.industry is null 
+and t2.industry is not null;
+
+
+
+select *
+from layoff_staging2
+where company like 'bally%'
+ ;
+ 
+ 
+ 
+ -- 4. remove any column
+ 
+ 
+ select *
+from layoff_staging2
+where total_laid_off is null
+and percentage_laid_off is null;
+ 
+ delete 
+
+from layoff_staging2
+where total_laid_off is null
+and percentage_laid_off is null;
+ 
+ alter table 
+ layoff_staging2
+ drop column
+ row_num;
+ 
+ select * from layoff_staging2;
+ 
